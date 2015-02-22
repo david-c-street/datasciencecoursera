@@ -43,6 +43,7 @@ std(): Standard deviation
 Contains all of the variables mentioned above with two factor variables appended as the first two columns of the data frame.
 
 subject: with factors 1:30 denoting the 30 subjects in the study
+
 activity: with the following factors-
 
 1 WALKING
@@ -56,5 +57,6 @@ activity: with the following factors-
 
 Contains the average of all variables mentioned above for each subject and for each activity. Data frame has two factor variables appended in front of the variable averages.
 
-parameter: subject or activity, denotes what parameter value is referring to
-parameter value: either a number, as character, from 1-30 denoted a subject or one of the activity types listed above.
+parameter: subject or activity, denotes what parameter\_value is referring to
+
+parameter\_value: either a number, as character, from 1-30 denoted a subject or one of the activity types listed above.
