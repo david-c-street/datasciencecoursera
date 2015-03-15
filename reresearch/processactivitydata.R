@@ -2,7 +2,6 @@
 
 #this is a sort of rough working draft while the final analysis will go into
 # the R markdown file PA1_template.Rmd
-library(plyr)
 library(dplyr)
 library(lubridate)
 library(ggplot2)
@@ -38,20 +37,78 @@ rm(tdf1)
 #create some useful grouped data sets
 tdf_bydate <- group_by(tdf, date)
 tdf_byday <- group_by(tdf, dayofweek)
-tdf_bypart <- group_by(tdf, partofweek)
+tdf_bydayint <- group_by(tdf, dayofweek, interval)
+tdf_bypartint <- group_by(tdf, partofweek, interval)
 tdf_byint <- group_by(tdf, interval)
 
 #create mean and median data from grouped data
-mms_bydate <- summarise(tdf_bydate,
-	meanstepsbydate=mean(steps, na.rm=T),
-	medstepbydate=median(steps, na.rm=T),
+ms_bydate <- summarise(tdf_bydate,
+	meanstepbyint=mean(steps, na.rm=T),
 	sumstepbydate=sum(steps, na.rm=T))
 	 
-mms_byint <- summarise(tdf_byint,
+ms_byint <- summarise(tdf_byint,
 	meanstepbyint=mean(steps, na.rm=T),
-	medstepbyint=median(steps, na.rm=T),
-	sumstepbyint=sum(steps, na.rm=T)) 
-	 
-histbydate <- ggplot(data=mm_bydate) + geom_histogram(aes(x=meanbydate))
-linebyint <- ggplot(data=mms_byint) + geom_line(aes(x=interval, y=meanstepbyint))
+	sumstepbyint=sum(steps, na.rm=T))
+	
+m_bydayint <- summarise(tdf_bydayint,
+	meanstepbyint = mean(steps, na.rm=T))
+	
+#max, mean, median calculations
+meansumperday <- mean(ms_bydate$sumstepbydate, na.rm=T)
+medsumperday <- median(ms_bydate$sumstepbydate, na.rm=T)
+maxstepint <- max(ms_byint$meanstepbyint, na.rm=T)
+	
+#impute missing values to form new data set without any NA's
+tdfnaind <- which(is.na(tdf$steps))
+num_na <- length(tdfnaind)
 
+#create a copy to add imputed values to
+imptdf <- tdf
+
+for (ind in tdfnaind) {
+	#find the average for this day of week and this interval
+	crnt_day <- tdf[[ind, 'dayofweek']]
+	crnt_int <- tdf[[ind, 'interval']]
+	crnt_dayintavg <- filter(m_bydayint, 
+		dayofweek==crnt_day, interval==crnt_int)[[1, 'meanstepbyint']]
+		
+	#add value to new data frame
+	imptdf[ind, 'steps'] <- crnt_dayintavg
+}
+
+#create some useful grouped data sets with imputed data
+imptdf_bydate <- group_by(imptdf, date)
+imptdf_bydayint <- group_by(imptdf, dayofweek, interval)
+imptdf_bypartint <- group_by(imptdf, partofweek, interval)
+imptdf_byint <- group_by(imptdf, interval)
+
+#create mean and median data from grouped data
+msimp_bydate <- summarise(imptdf_bydate,
+	meanstepbyint=mean(steps, na.rm=T),
+	sumstepbydate=sum(steps, na.rm=T))
+	 
+msimp_byint <- summarise(imptdf_byint,
+	meanstepbyint=mean(steps, na.rm=T),
+	sumstepbyint=sum(steps, na.rm=T))
+	
+mimp_bydayint <- summarise(imptdf_bydayint,
+	meanstepbyint = mean(steps, na.rm=T))
+	
+mimp_bypartint <- summarise(imptdf_bypartint,
+	meanstepbyint = mean(steps, na.rm=T))
+
+#create some plots	 
+histsumbydate <- ggplot(data=ms_bydate, aes(x=sumstepbydate))
+histsumbydate <- histsumbydate + geom_histogram()
+
+histimpsumbydate <- ggplot(data=msimp_bydate, aes(x=sumstepbydate))
+histimpsumbydate <- histimpsumbydate + geom_histogram()
+
+linebyint <- ggplot(data=ms_byint)
+linebyint <- linebyint + geom_line(aes(x=interval, y=meanstepbyint))
+
+scatbyintday <- ggplot(data=m_bydayint, aes(x=interval, y=meanstepbyint))
+scatbyintday <- scatbyintday + geom_point() + facet_wrap(~dayofweek)
+
+linebyintpart <- ggplot(data=mimp_bypartint, aes(x=interval, y=meanstepbyint))
+linebyintpart <- linebyintpart + geom_line() + facet_wrap(~partofweek)
