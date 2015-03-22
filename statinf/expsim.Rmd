@@ -9,10 +9,12 @@ output:
 #Summary
 An exercise to show the Central Limit Theorem via simulation. We'll run a lot of simulations with the exponential distribution and show how the distribution of the means of each simulation start to ressemble a normal distribution.
 
-#Creating simulation data
+#Data Processing
+##Creating simulation data
 
-First we load all necessary packages and set a few parameters we'll need:
-```{r}
+For all of these initial steps, the code run will be suppressed here but can be seen in full in the appendices.
+
+```{r, message=F, echo=F}
 #load needed libraries, set some simulation parameters
 library(ggplot2)
 library(dplyr)
@@ -31,8 +33,9 @@ thmeansd <- thsd/sqrt(nexpsims)
 thmeanvar <- thmeansd^2
 ```
 
-Next we create the simulated data and put it into a tidy form. For this we create an empty matrix where each column is an exponential simulation and the rows are the data points. We'll have `r nmeansims` simulations, each with `r nexpsims` data points.
-```{r}
+After loading necessary libraries and setting some simulation parameters we create the simulated data and put it into a tidy form. For this we create an empty matrix where each column is an exponential simulation and the rows are the data points. We'll have `r nmeansims` simulations, each with `r nexpsims` data points. This is turned into a data frame in R so that plots and data display are simpler.
+
+```{r, message=F, echo=F}
 #create a matrix of all sim data
 msimdata <- matrix(ncol=nmeansims, nrow=nexpsims)
 for (i in 1:nmeansims) {
@@ -48,25 +51,136 @@ dfdatasim <- tbl_df(dfdatasim)
 dfmeansim <- tbl_df(data.frame(meansimexp=colMeans(msimdata)))
 ```
 
-While we are crunching data, let's get summary statistics for the simulated data:
-```{r}
+After creating all of the simulated data, we calculate basic summary statistics which will be discussed in the data analysis section of this report.
+```{r, message=F, echo=F}
 meanmeans <- mean(dfmeansim$meansimexp)
 medmeans <- median(dfmeansim$meansimexp)
 varmeans <- var(dfmeansim$meansimexp)
+sdmeans <- sd(dfmeansim$meansimexp)
 ```
 
-For comparisons sake, let's also simulate data for what the central limit theorem says our distribution of exponential means should look like.
-```{r}
-nnormsims <- 10*nmeansims
+We also simulate data for what the central limit theorem says our distribution of exponential means should look like. This will be useful later on to see how close the sample means distribution gets to the normal distribution it is supposed to converge to.
+
+```{r, message=F, echo=F}
+nnormsims <- 1*nmeansims
 dfmeanth <- tbl_df(data.frame(meanth=rnorm(nnormsims,
      mean=thmeanmean, sd=thmeansd)))
 ```
-Note that we did `r nnormsims`, more than we had the other sim case just so we get a cleaner looking histogram for comparison.
 
 #Data Analysis
 
-##Inspect data
-First, let's just take a look at the data sets we've created.
+##Sample versus theoretical, mean and variance
+Let's take a look at a plot to see what the distribution of the means of the `r nmeansims` exponential simulations looks like. The RED vertical line is the population mean and the BLUE vertical line is the mean of the sample means. They are right on top of each other as they are very close, as we would expect. Also note the two other lines, red and blue again theorical and sample respectively, that are at 2 standard deviations. Again these are very close indicating good agreement between the sample results and the theoretical expectation. 
+
+```{r, message=F, echo=F}
+simmeanhist <- ggplot(data=dfmeansim, aes(x=meansimexp)) 
+simmeanhist <- simmeanhist + geom_histogram(binwidth=0.2)
+simmeanhist <- simmeanhist + geom_vline(xintercept=thmeanmean, color='red')
+simmeanhist <- simmeanhist + geom_vline(xintercept=meanmeans, color='blue')
+th2sig <- thmeanmean + 2*thmeansd
+sim2sig <- meanmeans + 2*sdmeans
+simmeanhist <- simmeanhist + geom_vline(xintercept=th2sig, color='red')
+simmeanhist <- simmeanhist + geom_vline(xintercept=sim2sig, color='blue')
+simmeanhist <- simmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nmeansims/9))
+simmeanhist <- simmeanhist + labs(title='Sample Mean Distribution',
+    x='sample mean')
+simmeanhist
+```
+
+And here are the values of all the summary statistics for both the simulated data and theoretical distribution. Good agreement all around.
+
+Distribution of sample means:
+- Mean: `r meanmeans`
+- Standard Deviation: `r sdmeans`
+- Variance: `r varmeans`
+
+Theoretical distribution:
+- Mean: `r thmeanmean`
+- Standard Deviation: `r thmeansd`
+- Variance: `r thmeanvar`
+
+##Distribution
+To verify that the distribution of sample means is indeed approaching normal, let's look at the means of the simulated exponentials, in blue, over the top of the normal data we simulated based on the expected normal distribution, in black:
+
+```{r, message=F, echo=F}
+thmeanhist <- ggplot() + geom_histogram(data=dfmeanth, 
+    aes(x=meanth), binwidth=0.2)
+thmeanhist <- thmeanhist + geom_histogram(data=dfmeansim, aes(x=meansimexp),
+	color='blue', fill='blue', alpha=0.5, binwidth=0.2)
+thmeanhist <- thmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nnormsims/9))
+thmeanhist <- thmeanhist + labs(title='Theoretical and Sample Means',
+	x='sample mean')
+thmeanhist
+```
+
+They are visually very close to each other, confirming the theoretical expectation once again. And also very far from the exponential distribution the data is drawn from, shown here with simulated data:
+
+```{r, message=F, echo=F}
+dfsimexp <- tbl_df(data.frame(exp=rexp(nmeansims, lambda)))
+exphist1 <- ggplot(data=dfsimexp, aes(x=exp)) + geom_histogram(binwidth=2)
+exphist1 <- exphist1 + labs(title='Exponential Distribution Simulation',
+    x='exponential data values (simulated)') 
+exphist1
+```
+
+
+#Appendices
+##Data processing
+Loading of necessary libraries, setting simulation parameters:
+```{r, message=F, eval=F}
+#load needed libraries, set some simulation parameters
+library(ggplot2)
+library(dplyr)
+randseed <- 1
+set.seed(1)
+nexpsims <- 40
+nmeansims <- 1000
+#properties of source exponential dist
+lambda <- 0.2
+thmean <- 1/lambda
+thsd <- 1/lambda
+thvar <- thsd^2
+#properties of theoretical CLT distribution
+thmeanmean <- thmean
+thmeansd <- thsd/sqrt(nexpsims)
+thmeanvar <- thmeansd^2
+```
+
+Creation of simulated exponential data:
+```{r, message=F, eval=F}
+#create a matrix of all sim data
+msimdata <- matrix(ncol=nmeansims, nrow=nexpsims)
+for (i in 1:nmeansims) {
+    msimdata[,i] <- rexp(nexpsims, lambda)
+}
+
+#create nice tidy data frames to hold data
+#sim data
+dfdatasim <- data.frame(msimdata)
+names(dfdatasim) <- paste('sim', as.character(1:nmeansims), sep='')
+dfdatasim <- tbl_df(dfdatasim)
+#means of sim data
+dfmeansim <- tbl_df(data.frame(meansimexp=colMeans(msimdata)))
+```
+
+Calculation of summary statistics:
+```{r, message=F, eval=F}
+meanmeans <- mean(dfmeansim$meansimexp)
+medmeans <- median(dfmeansim$meansimexp)
+varmeans <- var(dfmeansim$meansimexp)
+sdmeans <- sd(dfmeansim$meansimexp)
+```
+
+Creation of simulated data for the expected normal distribution of means:
+```{r, message=F, eval=F}
+nnormsims <- 1*nmeansims
+dfmeanth <- tbl_df(data.frame(meanth=rnorm(nnormsims,
+     mean=thmeanmean, sd=thmeansd)))
+```
+
+
+##Data inspection
+Let's take a look at the data sets we've created.
 
 The raw sim data (just the first 10 data of points of 3 sets):
 ```{r}
@@ -83,16 +197,37 @@ And finally the second set of simulated data, what we expect the means of expone
 dfmeanth
 ```
 
-##Sample mean versus theoretical mean
-Let's take a look at a plot to see what the distribution of the means of the `r nmeansims` exponential simulations looks like. The RED vertical line is the population mean, `r thmeanmean` and the BLUE vertical line is the mean of the sample means, `r thmeanmeans`. They are right on top of each other as they are very close, as we would expect.
-```{r}
+##Plot creation
+Code for first plot on theoretical vs. sample mean and variance:
+```{r, message=F, eval=F}
 simmeanhist <- ggplot(data=dfmeansim, aes(x=meansimexp)) 
 simmeanhist <- simmeanhist + geom_histogram(binwidth=0.2)
 simmeanhist <- simmeanhist + geom_vline(xintercept=thmeanmean, color='red')
 simmeanhist <- simmeanhist + geom_vline(xintercept=meanmeans, color='blue')
+th2sig <- thmeanmean + 2*thsd
+sim2sig <- meanmeans + 2*sdmeans
+simmeanhist <- simmeanhist + geom_vline(xintercept=th2sig, color='red')
+simmeanhist <- simmeanhist + geom_vline(xintercept=sim2sig, color='blue')
 simmeanhist <- simmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nmeansims/9))
 simmeanhist <- simmeanhist + labs(title='Sample Mean Distribution',
-    x='sample mean') 
-simmeanhist
+    x='sample mean')
 ```
 
+Code for second plot comparing versus theoretical normal:
+```{r, message=F, eval=F}
+thmeanhist <- ggplot() + geom_histogram(data=dfmeanth, 
+    aes(x=meanth), binwidth=0.2)
+thmeanhist <- thmeanhist + geom_histogram(data=dfmeansim, aes(x=meansimexp),
+    color='blue', fill='blue', alpha=0.5, binwidth=0.2)
+thmeanhist <- thmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nnormsims/9))
+thmeanhist <- thmeanhist + labs(title='Theoretical and Sample Means',
+	x='sample mean')
+```
+
+And code for the exponential plot:
+```{r, message=F, eval=F}
+dfsimexp <- tbl_df(data.frame(exp=rexp(nmeansims, lambda)))
+exphist1 <- ggplot(data=dfsimexp, aes(x=exp)) + geom_histogram(binwidth=2)
+exphist1 <- exphist1 + labs(title='Exponential Distribution Simulation',
+    x='exponential data values (simulated)') 
+```

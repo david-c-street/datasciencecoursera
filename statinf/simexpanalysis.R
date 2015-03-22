@@ -34,9 +34,10 @@ dfmeansim <- tbl_df(data.frame(meansimexp=colMeans(msimdata)))
 meanmeans <- mean(dfmeansim$meansimexp)
 medmeans <- median(dfmeansim$meansimexp)
 varmeans <- var(dfmeansim$meansimexp)
+sdmeans <- sd(dfmeansim$meansimexp)
 
 #create sim data for theoretical distribution of means, what it should look like
-nnormsims <- 10*nmeansims
+nnormsims <- 1*nmeansims
 dfmeanth <- tbl_df(data.frame(meanth=rnorm(nnormsims,
 	 mean=thmeanmean, sd=thmeansd)))
 
@@ -46,17 +47,23 @@ simmeanhist <- ggplot(data=dfmeansim, aes(x=meansimexp))
 simmeanhist <- simmeanhist + geom_histogram(binwidth=0.2)
 simmeanhist <- simmeanhist + geom_vline(xintercept=thmeanmean, color='red')
 simmeanhist <- simmeanhist + geom_vline(xintercept=meanmeans, color='blue')
+th2sig <- thmeanmean + 2*thmeansd
+sim2sig <- meanmeans + 2*sdmeans
+simmeanhist <- simmeanhist + geom_vline(xintercept=th2sig, color='red')
+simmeanhist <- simmeanhist + geom_vline(xintercept=sim2sig, color='blue')
 simmeanhist <- simmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nmeansims/9))
 simmeanhist <- simmeanhist + labs(title='Sample Mean Distribution',
-	x='sample mean') 
+	x='sample mean')
 
-#hist of theoretical distribution
-thmeanhist <- ggplot(data=dfmeanth, aes(x=meanth))
-thmeanhist <- thmeanhist + geom_histogram(binwidth=0.2)
-thmeanhist <- thmeanhist + geom_vline(xintercept=thmeanmean, color='red')
+
+#hist of theoretical distribution with sample means overlaid
+thmeanhist <- ggplot() + geom_histogram(data=dfmeanth, 
+	aes(x=meanth), binwidth=0.2)
+thmeanhist <- thmeanhist + geom_histogram(data=dfmeansim, aes(x=meansimexp),
+	color='blue', fill='blue', alpha=0.5, binwidth=0.2)
 thmeanhist <- thmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nnormsims/9))
-thmeanhist <- thmeanhist + labs(title='Theoretical Sample Mean Distribution',
-	x='sample mean (simulated)') 
+thmeanhist <- thmeanhist + labs(title='Theoretical and Sample Means',
+	x='sample mean')
 
 #hist of an individual exponential
 dfsimexp <- tbl_df(data.frame(exp=rexp(nmeansims, lambda)))
