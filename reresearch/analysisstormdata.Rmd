@@ -1,0 +1,16 @@
+---
+title: "Human and Property Cost Analysis from Storm Data"
+author: "David C Street"
+date: "21 March 2015"
+output:
+  html_document:
+    toc: yes
+---
+
+#Synopsis
+I have analysed storm data from NOAA's storm database to find the most costly and dangerous storm events. The results are unambigous, a relatively small number of weather event types cause most damage and human casualties.
+
+#Data Processing
+
+
+#Results

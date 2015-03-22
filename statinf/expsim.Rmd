@@ -1,20 +1,98 @@
 ---
 title: "Exponential distribution simulation"
-output: pdf_document
+author: "David C Street"
+output:
+  pdf_document:
+    toc: yes
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#Summary
+An exercise to show the Central Limit Theorem via simulation. We'll run a lot of simulations with the exponential distribution and show how the distribution of the means of each simulation start to ressemble a normal distribution.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Creating simulation data
 
+First we load all necessary packages and set a few parameters we'll need:
 ```{r}
-summary(cars)
+#load needed libraries, set some simulation parameters
+library(ggplot2)
+library(dplyr)
+randseed <- 1
+set.seed(1)
+nexpsims <- 40
+nmeansims <- 1000
+#properties of source exponential dist
+lambda <- 0.2
+thmean <- 1/lambda
+thsd <- 1/lambda
+thvar <- thsd^2
+#properties of theoretical CLT distribution
+thmeanmean <- thmean
+thmeansd <- thsd/sqrt(nexpsims)
+thmeanvar <- thmeansd^2
 ```
 
-You can also embed plots, for example:
+Next we create the simulated data and put it into a tidy form. For this we create an empty matrix where each column is an exponential simulation and the rows are the data points. We'll have `r nmeansims` simulations, each with `r nexpsims` data points.
+```{r}
+#create a matrix of all sim data
+msimdata <- matrix(ncol=nmeansims, nrow=nexpsims)
+for (i in 1:nmeansims) {
+    msimdata[,i] <- rexp(nexpsims, lambda)
+}
 
-```{r, echo=FALSE}
-plot(cars)
+#create nice tidy data frames to hold data
+#sim data
+dfdatasim <- data.frame(msimdata)
+names(dfdatasim) <- paste('sim', as.character(1:nmeansims), sep='')
+dfdatasim <- tbl_df(dfdatasim)
+#means of sim data
+dfmeansim <- tbl_df(data.frame(meansimexp=colMeans(msimdata)))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+While we are crunching data, let's get summary statistics for the simulated data:
+```{r}
+meanmeans <- mean(dfmeansim$meansimexp)
+medmeans <- median(dfmeansim$meansimexp)
+varmeans <- var(dfmeansim$meansimexp)
+```
+
+For comparisons sake, let's also simulate data for what the central limit theorem says our distribution of exponential means should look like.
+```{r}
+nnormsims <- 10*nmeansims
+dfmeanth <- tbl_df(data.frame(meanth=rnorm(nnormsims,
+     mean=thmeanmean, sd=thmeansd)))
+```
+Note that we did `r nnormsims`, more than we had the other sim case just so we get a cleaner looking histogram for comparison.
+
+#Data Analysis
+
+##Inspect data
+First, let's just take a look at the data sets we've created.
+
+The raw sim data (just the first 10 data of points of 3 sets):
+```{r}
+select(dfdatasim, sim1:sim3)
+```
+
+The means of each exponential sim (just the first 10):
+```{r}
+dfmeansim
+```
+
+And finally the second set of simulated data, what we expect the means of exponentials to look like (again, just the first 10):
+```{r}
+dfmeanth
+```
+
+##Sample mean versus theoretical mean
+Let's take a look at a plot to see what the distribution of the means of the `r nmeansims` exponential simulations looks like. The RED vertical line is the population mean, `r thmeanmean` and the BLUE vertical line is the mean of the sample means, `r thmeanmeans`. They are right on top of each other as they are very close, as we would expect.
+```{r}
+simmeanhist <- ggplot(data=dfmeansim, aes(x=meansimexp)) 
+simmeanhist <- simmeanhist + geom_histogram(binwidth=0.2)
+simmeanhist <- simmeanhist + geom_vline(xintercept=thmeanmean, color='red')
+simmeanhist <- simmeanhist + geom_vline(xintercept=meanmeans, color='blue')
+simmeanhist <- simmeanhist + coord_cartesian(xlim=c(2,8),ylim=c(0,nmeansims/9))
+simmeanhist <- simmeanhist + labs(title='Sample Mean Distribution',
+    x='sample mean') 
+simmeanhist
+```
+
