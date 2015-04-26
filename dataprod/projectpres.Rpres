@@ -1,0 +1,56 @@
+Guided Data Exploration with Shiny
+========================================================
+author: David Street
+date: 26 April, 2015
+
+The Shiny app can be found here: http://francoisrd.shinyapps.io/projectapp
+
+Learn by doing
+========================================================
+
+This shiny app allows the user to explore a data set interactively without having to deal with all of the requisite details
+
+- Get an idea of the basic process
+- Look at some examples of visual data exploration
+- Adjust plot and data inputs and see results real time
+- User will better understand some basics of data exploration
+- Serves as an example of the data analysis itself and a way to create a reproducible data product
+
+Coding is hard
+========================================================
+Creating nice graphs can be tricky!
+
+```{r}
+library(ggplot2)
+library(dplyr)
+data(ToothGrowth)
+tg <- tbl_df(ToothGrowth)
+tg <- mutate(tg, dosefact=as.factor(dose))
+tg <- mutate(tg, ypos=runif(60, -0.5, 0.5))
+jplot <- ggplot(data=tg)
+jplot <- jplot + coord_cartesian(xlim=c(0,35), ylim=c(-1,1))
+jplot <- jplot + geom_point(aes(x=len, y=ypos, color=dosefact), size=5)
+jplot <- jplot + facet_grid(supp~.)
+jplot <- jplot + labs(title='Jitter Plot',
+                    x='tooth length', y='')
+```
+
+Play with nice plots
+========================================================
+
+```{r, echo=FALSE}
+print(jplot)
+```
+***
+- User can see the plot right away and play with some inputs without worrying about the details
+- Input data can be adjusted and plot will update in real time allowing user to get a better sense of the data
+
+Next steps
+========================================================
+
+This concept can be easily extended to teach more concepts in data analysis, statistics and R or to make impressive presentations
+
+- Could extend to other data sets
+- Could include hypothesis testing, machine learning, regression inputs
+- Would be very useful to present results in a meeting where interactivity will help explain and convince
+- Is a reproducible analysis, easy to share on the web or with the files

@@ -3,22 +3,107 @@ title: "Tooth growth data analysis"
 author: "David C Street"
 date: "22 March 2015"
 output:
-  pdf_document:
-    toc: yes
+  pdf_document: default
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#Summary
+This report presents an analysis of the `ToothGrowth` data set in R. It includes an exploratory data analysis and statistical inference data analysis.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Data Processing
+We need to first load appropriate libraries and the data. I have also performed a couple small data transformations to make data analysis easier. The last line calculates summary statistics on the grouped data. Here is the R code to do that:
+
+```{r, message=F}
+library(ggplot2)
+library(dplyr)
+
+data(ToothGrowth)
+
+#make a couple tbl_df's to facilitate data analysis
+tg <- tbl_df(ToothGrowth)
+tg_dose <- mutate(tg, dosefact=as.factor(dose))
+
+tg_bysuppdose <- group_by(tg, supp, dose)
+tg_bysuppdose_stat <- summarise(tg_bysuppdose, 
+    meanlen=mean(len), sdlen=sd(len))
+```
+
+#Exploratory Data Analysis
+Let's first look at the summary statistics of the data:
+```{r, echo=F}
+tg_bysuppdose_stat
+```
+
+And let's look at a violin plot of the data to get a visual idea of the shape of the data:
 
 ```{r}
-summary(cars)
+vplottitle <- 'Tooth growth by supplement (OJ=Orange Juice, VC=Ascorbic Acid)'
+vplot <- ggplot(tg_dose, aes(y=len, x=dosefact))
+vplot <- vplot + geom_violin() + facet_wrap(~supp)
+vplot <- vplot + labs(title=vplottitle, 
+    x='vitamin C dose (mg)', y='tooth length')
+vplot
 ```
 
-You can also embed plots, for example:
+It seems clear that there is a significant effect on tooth growth with both supplementation techniques based on this quick look. That is, increasing the dose increases tooth growth. It is less if clear if there is a significant difference between the methods of supplementation, orange juice (OJ) versus ascorbic acid (VC).
 
-```{r, echo=FALSE}
-plot(cars)
+Next we'll see what statistical inference shows.
+
+#Statistical Inference Data Analysis
+##Dosing
+First, considering only the dose and not the supplementation method, let's see if we can find a statistically significant difference between a 0.5 mg dose and a 2.0 mg dose.
+
+```{r}
+tg_bydose <- group_by(tg, dose)
+tg_bydosemean <- summarise(tg_bydose, meanlen=mean(len))
+tg_bydosemean
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The mean of the tooth length is higher for each dose increase. So let's test the hypotheses that each step up increases tooth growth.
+
+Those tests set up in R:
+```{r}
+dose1 <- filter(ToothGrowth, dose==0.5)[,'len']
+dose2 <- filter(ToothGrowth, dose==1.0)[,'len']
+t1 <- t.test(dose1, dose2, alternative='greater')
+
+dose1 <- filter(ToothGrowth, dose==1.0)[,'len']
+dose2 <- filter(ToothGrowth, dose==2.0)[,'len']
+t2 <- t.test(dose1, dose2, alternative='greater')
+
+dose1 <- filter(ToothGrowth, dose==0.5)[,'len']
+dose2 <- filter(ToothGrowth, dose==2.0)[,'len']
+t3 <- t.test(dose1, dose2, alternative='greater')
+```
+
+Based on the results of each one of these t-tests shows that we can reject the null hypothesis with 95% confidence in each case. In other words each increase in dose shows a statistically significant tooth growth.
+
+##Supplementation method
+Next let's see if we can find a statistically significant differences between supplement methods.
+
+```{r}
+tg_bysupp <- group_by(tg, supp)
+tg_bysuppmean <- summarise(tg_bysupp, meanlen=mean(len))
+tg_bysuppmean
+```
+
+OJ supplementation has a higher mean so let's test the hypothesis that is increases tooth growth more than VC (ascorbic acid).
+
+That test set up in R:
+```{r}
+supp1 <- filter(ToothGrowth, supp=='VC')[,'len']
+supp2 <- filter(ToothGrowth, supp=='OJ')[,'len']
+t4 <- t.test(supp1, supp2, alternative='greater')
+```
+
+Based on the t-test results, we can reject the null hypothesis with 95% confidence. In other words, the orange juice shows a statistically significant increase in tooth growth versus the ascorbic acid.
+
+#Appendices
+##Results of t-tests
+The detailed results of the four t-tests performed:
+```{r}
+t1
+t2
+t3
+t4
+```
+

@@ -1,16 +1,131 @@
 ---
 title: "Human and Property Cost Analysis from Storm Data"
 author: "David C Street"
-date: "21 March 2015"
+date: "22 March 2015"
 output:
   html_document:
     toc: yes
 ---
 
 #Synopsis
-I have analysed storm data from NOAA's storm database to find the most costly and dangerous storm events. The results are unambigous, a relatively small number of weather event types cause most damage and human casualties.
+I have analysed storm data from NOAA's storm database to find the most costly and dangerous storm events. The results are unambigous, a relatively small number of weather event types cause most damage and human casualties. The categories of the data are slightly misleading though. Additional data cleanup is recommended to get more useful results.
 
 #Data Processing
+We first need to load relevant libraries and load the storm data into R. You'll also see that I have trimmed the data set in places to make working with it more efficient.
 
+```{r, message=F, results='hide'}
+#script to process storm data and do some analysis on it
+library(ggplot2)
+library(data.table)
+library(dplyr)
+
+#file and data processing
+originalfile <- 'StormData.csv'
+cleanfile <- 'stormdataclean.csv'
+#make a nice CSV file and save it
+if (!file.exists(cleanfile)){
+    rawstormdata <- read.csv(originalfile)
+	rawstormdata <- tbl_df(rawstormdata)
+	#get rid of some unused columns to speed up operations
+	rawstormdata <- select(rawstormdata, -REMARKS, -STATE__,
+		-(BGN_RANGE:END_LOCATI), -(CROPDMG:ZONENAMES))
+	write.csv(rawstormdata, cleanfile)
+}
+
+#load data into local data table, make a couple changes
+if (!exists('stormdata')){
+	stormdata <- tbl_dt(fread(cleanfile, stringsAsFactors=T))
+}
+```
+
+Next we take that data a wrangle it into some convenient grouped sets. This allows to easily extract the summary information we need.
+
+First we'll do this for the human casualties of the storm events:
+
+```{r}
+#human costs
+stormdata_byevent <- group_by(stormdata, EVTYPE)
+stormdata_byevent_humansums <- tbl_df(summarise(stormdata_byevent, 
+    fatalities=sum(FATALITIES, na.rm=T), injuries = sum(INJURIES, na.rm=T),
+	casualties=sum(FATALITIES, INJURIES, na.rm=T)))
+stormdata_byevent_humansums <- filter(stormdata_byevent_humansums, casualties>0)
+stormdata_byevent_humansums <- arrange(stormdata_byevent_humansums,
+	desc(casualties))
+stormdata_byevent_humansumstop5 <- head(stormdata_byevent_humansums, n=5)
+```
+
+And next for the property damage cause by the storms. Note that is this case, the manipulation of the data is more involved as we have to combine two columns, one numeric and one character, to get the actual numeric property damage. Other than that the process is identical to the compilation of the human casualty data.
+
+```{r}
+#property costs    
+stormdata_byeventpdmg <- group_by(stormdata, EVTYPE, PROPDMGEXP)
+stormdata_byevent_propsums <- tbl_df(summarise(stormdata_byeventpdmg, 
+	damages=sum(PROPDMG, na.rm=T)))
+stormdata_byevent_propsums <- filter(stormdata_byevent_propsums, damages>0)
+#one last processing step to get apply PROPDMGEXP column to sums
+#create a new column of data that translates EXP tag into a multiplier
+allexp <- stormdata_byevent_propsums[,'PROPDMGEXP']
+multy <- numeric()
+for (i in 1:dim(allexp)[1]){
+	crnt_str <- as.character(allexp[i,])
+	if (crnt_str=='M' | crnt_str=='m'){
+		multy <- c(multy, 1000000.0)
+	} else if (crnt_str=='B' | crnt_str=='b'){
+		multy <- c(multy, 1000000000.0)
+	} else {
+		#assume if it is K, k or blank, the multiplier in 1,000
+		multy <- c(multy, 1000.0)
+	}
+}
+#use that multiplier to create a columns that is the actual numerical damage
+stormdata_byevent_propsums <- cbind(stormdata_byevent_propsums, multy=multy)
+stormdata_byevent_propsums <- mutate(stormdata_byevent_propsums, 
+	propdmgtotal=damages*multy)
+#group by one more time to consolidate the event types in to one row
+stormdata_byeventpdmg <- group_by(stormdata_byevent_propsums, EVTYPE)
+stormdata_byevent_propsums <- summarise(stormdata_byeventpdmg,
+	damages= sum(propdmgtotal))
+stormdata_byevent_propsums <- arrange(stormdata_byevent_propsums,
+	desc(damages))
+stormdata_byevent_propsumstop5 <- head(stormdata_byevent_propsums, n=5)
+```
 
 #Results
+To get a sense of scale, let's first look at simple graphs of the human and property costs of the most damaging event types:
+
+In terms of human casualties:
+```{r}
+humanbartop5 <- ggplot(head(stormdata_byevent_humansumstop5))
+humanbartop5 <- humanbartop5 + geom_bar(aes(x=EVTYPE, y=casualties),
+    stat='identity')
+humanbartop5 <- humanbartop5 + labs(title='5 Most Dangerous Events',
+	x='Event', y='Casualties')
+humanbartop5
+```
+
+In terms of property damage:
+```{r}
+propbartop5 <- ggplot(head(stormdata_byevent_propsumstop5))
+propbartop5 <- propbartop5 + geom_bar(aes(x=EVTYPE, y=damages),
+    stat='identity')
+propbartop5 <- propbartop5 + labs(title='5 Most Costly Events',
+	x='Event', y='Property Damage (USD)')
+propbartop5
+```
+
+Let's also take a look at tables of the most damaging events:
+
+Human casualties:
+```{r, results='markup'}
+head(stormdata_byevent_humansums, n=15)
+```
+
+Property damage:
+```{r, results='markup'}
+head(stormdata_byevent_propsums, n=15)
+```
+
+Note that there are many different kinds of floods on the property damage table. This is one place where combining categories or coming up with a hierarchy of event types might help us draw more meaning from the data.
+
+#Conclusion
+With this data analysis we have a good idea of what event types are most damaging to human health and property. With additional data cleanup, we could put a finer point on this.
